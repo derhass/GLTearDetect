@@ -1,0 +1,10 @@
+dep/
+build/
+ipch/
+glteardetect
+*.o
+*.opensdf
+*.sdf
+*.vcxproj.user
+*~
+*.swp
