@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define APPTITLE "Teardetect"
+#define APPTITLE "GLTearDetect"
 
 /****************************************************************************
  * DATA STRUCTURES                                                          *
