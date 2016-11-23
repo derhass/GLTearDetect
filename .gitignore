@@ -5,6 +5,7 @@ glteardetect
 *.o
 *.opensdf
 *.sdf
+*.suo
 *.vcxproj.user
 *~
 *.swp
