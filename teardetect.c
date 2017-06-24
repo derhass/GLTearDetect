@@ -459,7 +459,7 @@ td_ctx_set_swap_interval(TDContext *ctx)
 			if (GLAD_WGL_EXT_swap_control) {
 				wglSwapIntervalEXT(ctx->swapInterval);
 			} else {
-				warn("wglSwapInterval%s not available");
+				warn("wglSwapIntervalEXT not available");
 				return;
 			}
 			break;
@@ -495,7 +495,7 @@ td_ctx_set_swap_interval(TDContext *ctx)
 				}
 				glXSwapIntervalEXT(dpy, drawable, ctx->swapInterval);
 			} else {
-				warn("glXSwapInterval%s not available");
+				warn("glXSwapIntervalEXT not available");
 				return;
 			}
 			break;
@@ -504,7 +504,7 @@ td_ctx_set_swap_interval(TDContext *ctx)
 			if (GLAD_GLX_SGI_swap_control) {
 				glXSwapIntervalSGI(ctx->swapInterval);
 			} else {
-				warn("glXSwapInterval%s not available");
+				warn("glXSwapIntervalSGI not available");
 				return;
 			}
 			break;
