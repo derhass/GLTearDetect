@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
+#include <errno.h>
 
 #define APPTITLE "GLTearDetect"
 
@@ -85,6 +87,8 @@ typedef struct {
 	double avg_lat;
 	double avg_fps;
 	double cur_lat;
+	uint64_t busy_wait_ns;
+	uint64_t sleep_ns;
 } TDContext;
 
 /* ctx flags */
@@ -92,6 +96,8 @@ typedef struct {
 #define TDCTX_DROP_WINDOW	0x2
 #define TDCTX_SWAP_INTERVAL_SET	0x4
 #define TDCTX_BINDING_EXTENSIONS_LOADED 0x8
+#define TDCTX_GL_FLUSH		0x10
+#define TDCTX_GL_FINISH		0x20
 #define TDCTX_FLAGS_DEFAULT	TDCTX_RUN
 
 /****************************************************************************
@@ -131,6 +137,42 @@ warn(const char *fmt, ...)
 	vfprintf(stderr, fmt, args);
 	va_end(args);
 	fputc('\n',stderr);
+}
+/****************************************************************************
+ * TIMERS                                                                   *
+ * nanoseconds since unspecified point in time                              *
+ ****************************************************************************/
+
+static uint64_t
+get_current_time()
+{
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return (uint64_t)(ts.tv_sec * 1000000000ULL) + (uint64_t)ts.tv_nsec;
+}
+
+static void
+sleep_nanoseconds(uint64_t amount)
+{
+	struct timespec ts;
+	int repeat;
+
+	ts.tv_sec=(time_t)(amount / 1000000000ULL);
+	ts.tv_nsec = (long)(amount % 1000000000ULL);
+
+	do {
+		struct timespec rem;
+		rem.tv_sec=0;
+		rem.tv_nsec=0;
+		repeat = 0;
+		if (nanosleep(&ts, &rem)) {
+			if (errno == EINTR) {
+				ts = rem;
+				repeat = 1;
+			}
+		}
+	} while (repeat);
 }
 
 /****************************************************************************
@@ -404,6 +446,26 @@ td_disp(TDContext *ctx)
 		default:
 			info(0,"invalid display mode 0x%x",(unsigned)ctx->mode);
 	}
+
+	if (ctx->flags & TDCTX_GL_FLUSH) {
+		glFlush();
+	}
+
+	if (ctx->flags & TDCTX_GL_FINISH) {
+		glFinish();
+	}
+
+	if (ctx->busy_wait_ns) {
+		uint64_t now = get_current_time();
+		volatile int i;
+		while (get_current_time() - now < ctx->busy_wait_ns) {
+			i++;
+		}	
+		(void)i;
+	}
+	if (ctx->sleep_ns) {
+		sleep_nanoseconds(ctx->sleep_ns);
+	}
 }
 
 /****************************************************************************
@@ -425,7 +487,12 @@ td_ctx_set_title(TDContext *ctx)
 	} else {
 		my_snprintf(swapi,sizeof(swapi),"unset");
 	}
-	my_snprintf(title, sizeof(title), APPTITLE": [%u:%s] %.2fFPS, lat: %.3fms, cur_lat: %.3fms", (unsigned)ctx->swapControlMode, swapi, ctx->avg_fps, ctx->avg_lat, ctx->cur_lat);
+	my_snprintf(title, sizeof(title),
+		APPTITLE": [%u:%s] %.2fFPS, lat: %.3fms, cur_lat: %.3fms%s%s, sleep: %.1fms, busywait: %.1fms", 
+		(unsigned)ctx->swapControlMode, swapi, ctx->avg_fps, ctx->avg_lat, ctx->cur_lat, 
+		((ctx->flags & TDCTX_GL_FLUSH)?", flush":""),
+		((ctx->flags & TDCTX_GL_FINISH)?", finish":""),
+		ctx->sleep_ns / 1000000.0, ctx->busy_wait_ns/1000000.0);
 	if (ctx->win.flags & TDWIN_DECORATED) {
 		glfwSetWindowTitle(ctx->win.win, title);
 	}
@@ -629,6 +696,38 @@ td_ctx_keyhandler(GLFWwindow *win, int key, int scancode, int action, int mods)
 				}
 				td_ctx_set_title(ctx);
 				break;
+			case 'B':
+				if ((mods & GLFW_MOD_SHIFT)) {
+					if (ctx->busy_wait_ns > 1000000) {
+						ctx->busy_wait_ns -= 1000000;
+					} else {
+						ctx->busy_wait_ns = 0;
+					}
+				} else {
+					ctx->busy_wait_ns += 1000000;
+				}
+				td_ctx_set_title(ctx);
+				break;
+			case 'V':
+				if ((mods & GLFW_MOD_SHIFT)) {
+					if (ctx->sleep_ns > 1000000) {
+						ctx->sleep_ns -= 1000000;
+					} else {
+						ctx->sleep_ns = 0;
+					}
+				} else {
+					ctx->sleep_ns += 1000000;
+				}
+				td_ctx_set_title(ctx);
+				break;
+			case 'C':
+				if ((mods & GLFW_MOD_SHIFT)) {
+					ctx->flags ^= TDCTX_GL_FLUSH;
+				} else {
+					ctx->flags ^= TDCTX_GL_FINISH;
+				}
+				td_ctx_set_title(ctx);
+				break;
 		}
 
 	}
@@ -690,6 +789,8 @@ td_ctx_init(TDContext *ctx)
 		ctx->timer_query_obj[i]=0;
 		ctx->timestamp[i]=0;
 	}
+	ctx->busy_wait_ns = 0;
+	ctx->sleep_ns = 0;
 }
 
 static int

@@ -29,6 +29,10 @@ The speed for Color Pulse and Bars can be controlled via keyboard.
 * `*`/`/`: increase/decrease bar width
 * `HOME`: reset speeds and sizes
 * `PageUp`/`PageDown`: cycle through different Swap Interval modes
+* `V`/`Shift-V`: increade/decrease the additional CPU sleep time per frame by 1 ms
+* `B`/`Shift-B`: increade/decrease the additional CPU busy wait time per frame by 1 ms
+* `C`: toggle forced CPU <-> GPU synchronzation per frame (`glFinish`)
+* `Shift-C`: toggle forced GPU queue flush per frame (`glFlush`)
 
 (Note: keyboard mapping assumes US layout always)
 
@@ -39,12 +43,16 @@ The program will regularily print info to the standard output
 
 The output will be in the form of:
 
-    GLTearDetect: [swap_interval_mode:interval] FPS Latency Last_Latency
+    GLTearDetect: [swap_interval_mode:interval] FPS Latency Last_Latency [flush] [finish] sleep busywait
 
 `FPS` (frames per second) and `Latency` (time between the `SwapBuffers` call and
 the actual buffer swap) are the averages over a period of one second, and
 `Last_Latency` will denote the actual latency of one frame at the time the info
 was generated (minus 10 frames).
+
+`flush` or `finish` forced GL CPU <-> GPU synchronization and are only shown when enabled (keys `C` and `Shuft-C`),
+`sleep` and `busywait` show additional time the CPU was put to sleep or to busy waiting per frame (keys `V`, `B`)
+to simulate some CPU load of a graphical application.
     
 ## Used Libraries
 
